@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "Camp Office Portal — Prosecutor General Punjab",
+  "short_name": "Camp Office",
+  "description": "Camp Office, Prosecutor General Punjab — daily cases, notices, inspection, scanning and registers in one app.",
+  "lang": "en",
+  "start_url": "/camp-office-suite/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#17294a",
+  "theme_color": "#17294a",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
