@@ -18,6 +18,9 @@
 (function () {
   'use strict';
   var SITE_KEY = '6LfEq-8tAAAAAOadr3u0IMVuz3T6SEqq0ht6fpL0';
+  /* The Firebase web-app id of "campofficepgp". App Check needs it to know which app is asking;
+     most pages do not carry it (a few carry a mistyped copy), so it is supplied here, once, for all. */
+  var APP_ID = '1:246340921152:web:84b0a687a00a9523f23ca5';
 
   if (!window.firebase || !firebase.initializeApp || window.__campAppCheck) { return; }
   window.__campAppCheck = true;
@@ -26,7 +29,16 @@
 
   var original = firebase.initializeApp;
   firebase.initializeApp = function () {
-    var app = original.apply(this, arguments);
+    var args = Array.prototype.slice.call(arguments);
+    try {
+      var o = args[0];
+      if (o && typeof o === 'object' && o.projectId === 'camp-office-project') {
+        var fixed = {}; for (var k in o) { if (Object.prototype.hasOwnProperty.call(o, k)) { fixed[k] = o[k]; } }
+        fixed.appId = APP_ID;
+        args[0] = fixed;
+      }
+    } catch (e0) {}
+    var app = original.apply(this, args);
     try {
       if (!app.__campAC) {
         app.__campAC = true;
