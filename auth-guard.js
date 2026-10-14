@@ -4,11 +4,14 @@
    Loaded by every page of the portal and by the five separate systems (they all
    live on the same origin, cmpofficepgp.org, and share one Firebase sign-in).
 
-   1) AUTO SIGN-OUT.  After 30 minutes without ANY activity in ANY open tab the
+   1) AUTO SIGN-OUT.  After 30 minutes (Super Admin: 10 minutes) without ANY activity in ANY open tab the
       user is signed out (a 2-minute warning with a "Stay signed in" button comes
       first).  Activity is shared between tabs through localStorage, so working in
       Case Entry keeps the whole session alive, and a closed/forgotten portal tab
       can no longer leave the account signed in forever.
+      STALE SESSIONS.  A login that the browser restored after the computer / browser was off is judged by the
+      activity stamp that was there BEFORE this page took part (so a mouse move while the page loads can no longer
+      "refresh" a day-old session), and any login older than 12 hours is ended when a page is opened.
    2) APPROVAL GATE (optional).  A page that sets  window.CAMP_REQUIRE_APPROVED = true
       before this script is blocked, with a full-screen notice, unless the signed-in
       user's  users/{uid}  profile is approved and active.  (The Firestore rules are
@@ -28,6 +31,9 @@
   window.__campGuardLoaded = true;
 
   var IDLE_MS = 30 * 60 * 1000;      /* sign out after this much inactivity          */
+  var IDLE_SUPER_MS = 10 * 60 * 1000;/* ... for the Super Admin                      */
+  var MAX_SESSION_MS = 12 * 60 * 60 * 1000;  /* a login older than this is ended when a page opens */
+  var KEY_SUPER = 'campSuperUid';    /* uid of the Super Admin (so every page knows the shorter limit) */
   var WARN_MS = 2 * 60 * 1000;       /* show the warning this long before sign-out   */
   var TICK_MS = 1000;                /* how often the idle clock is checked          */
   var SAVE_EVERY_MS = 5000;          /* how often activity is written to storage     */
@@ -38,8 +44,21 @@
 
   var auth = null, db = null, user = null;
   var memLast = Date.now(), lastSaved = 0;
+  var firstAuthSeen = false;
+  /* the activity stamp as it was BEFORE anything on this page could touch it (-1 = storage unreadable) */
+  var INITIAL_LAST = (function () {
+    try { var v = parseInt(localStorage.getItem('campLastActivity'), 10); return isNaN(v) ? 0 : v; } catch (e) { return -1; }
+  }());
   var bannerEl = null, blockEl = null, roBannerEl = null;
   var timer = null;
+
+  /* ----------------------------------------------------------- idle limit */
+  function isSuperUid(uid) {
+    try { return !!uid && localStorage.getItem(KEY_SUPER) === uid; } catch (e) { return false; }
+  }
+  function idleFor(uid) { return isSuperUid(uid) ? IDLE_SUPER_MS : IDLE_MS; }
+  function markSuper(uid) { try { if (uid) { localStorage.setItem(KEY_SUPER, uid); } } catch (e) {} }
+  function unmarkSuper(uid) { try { if (localStorage.getItem(KEY_SUPER) === uid) { localStorage.removeItem(KEY_SUPER); } } catch (e) {} }
 
   /* ---------------------------------------------------------------- storage */
   function getLast() {
@@ -118,9 +137,10 @@
   }
   function tick() {
     if (!user) { hideBanner(); return; }
+    var limit = idleFor(user.uid);
     var idle = Date.now() - getLast();
-    if (idle >= IDLE_MS) { signOutIdle(); return; }
-    if (idle >= IDLE_MS - WARN_MS) { showBanner(Math.max(0, Math.ceil((IDLE_MS - idle) / 1000))); }
+    if (idle >= limit) { signOutIdle(); return; }
+    if (idle >= limit - WARN_MS) { showBanner(Math.max(0, Math.ceil((limit - idle) / 1000))); }
     else { hideBanner(); }
   }
 
@@ -205,6 +225,7 @@
         .then(function (r) { return r.json().then(function (j) { return { s: r.status, j: j || {} }; }); })
         .then(function (r) {
           if (r.s !== 200) { return; }                       /* server unreachable / not deployed yet: leave the page alone */
+          if (r.j.isSuper) { markSuper(u.uid); } else { unmarkSuper(u.uid); }
           if (r.j.required && !r.j.verified) { location.href = PORTAL_URL; return; }
           if (!r.j.isSuper || r.j.verified) { try { sessionStorage.setItem('campOtpOk', key); } catch (e) {} }
         });
@@ -224,10 +245,18 @@
     auth.onAuthStateChanged(function (u) {
       user = u || null;
       if (!user) { hideBanner(); unblock(); return; }
-      try {                                         /* a sign-in that just happened counts as activity */
-        var ls = user.metadata && user.metadata.lastSignInTime ? Date.parse(user.metadata.lastSignInTime) : 0;
-        if (ls && Date.now() - ls < 2 * 60 * 1000) { touch(true); }
-      } catch (e) {}
+      var ls = 0;
+      try { ls = user.metadata && user.metadata.lastSignInTime ? Date.parse(user.metadata.lastSignInTime) : 0; } catch (e) {}
+      var now = Date.now(), seen = firstAuthSeen;
+      firstAuthSeen = true;
+      if (ls && now - ls < 2 * 60 * 1000) { touch(true); }          /* a sign-in that just happened counts as activity */
+      else if (!seen) {
+        /* a login the browser restored: judge it by the stamp from BEFORE this page opened, never by what happened since */
+        var limit = idleFor(user.uid);
+        var tooOld = !!ls && now - ls > MAX_SESSION_MS;
+        var staleIdle = INITIAL_LAST > 0 ? (now - INITIAL_LAST >= limit) : (!!ls && now - ls >= limit);
+        if (tooOld || staleIdle) { signOutIdle(); return; }
+      }
       tick();                                       /* a stale restored session is signed out at once */
       if (auth.currentUser) { checkApproved(user); checkOtp(user); }
     });
@@ -249,6 +278,8 @@
     idleMs: IDLE_MS,
     touch: function () { touch(true); },
     signOut: signOutIdle,
+    markSuper: markSuper,
+    unmarkSuper: unmarkSuper,
     lastIdleLogout: function () {
       try { return parseInt(localStorage.getItem(KEY_IDLE_OUT), 10) || 0; } catch (e) { return 0; }
     },
