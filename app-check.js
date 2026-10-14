@@ -11,18 +11,18 @@
    This file wraps firebase.initializeApp so every Firebase app the page makes
    (including the temporary one used to create an account) is protected.
 
-   THE ONLY THING TO EDIT:  put the reCAPTCHA v3 SITE key between the quotes below.
+   THE ONLY THING TO EDIT:  put the reCAPTCHA Enterprise (score-based) key between the quotes below.
    While it is left as the placeholder this file does nothing at all, so uploading
    it early is safe.  (The site key is public by design; the SECRET key never goes here.)
    ========================================================================== */
 (function () {
   'use strict';
-  var SITE_KEY = 'PASTE_RECAPTCHA_V3_SITE_KEY_HERE';
+  var SITE_KEY = '6LfEq-8tAAAAAOadr3u0IMVuz3T6SEqq0ht6fpL0';
 
   if (!window.firebase || !firebase.initializeApp || window.__campAppCheck) { return; }
   window.__campAppCheck = true;
   if (!SITE_KEY || SITE_KEY.indexOf('PASTE_') === 0) { return; }       /* not configured yet */
-  if (typeof firebase.appCheck !== 'function') { return; }              /* SDK script missing: pages keep working */
+  if (typeof firebase.appCheck !== 'function' || !firebase.appCheck.ReCaptchaEnterpriseProvider) { return; }  /* SDK script missing: pages keep working */
 
   var original = firebase.initializeApp;
   firebase.initializeApp = function () {
@@ -32,7 +32,7 @@
         app.__campAC = true;
         /* debug token only for local testing, never set on the live site */
         if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) { self.FIREBASE_APPCHECK_DEBUG_TOKEN = true; }
-        firebase.appCheck(app).activate(SITE_KEY, true);                /* true = refresh the token automatically */
+        firebase.appCheck(app).activate(new firebase.appCheck.ReCaptchaEnterpriseProvider(SITE_KEY), true);  /* true = refresh the token automatically */
       }
     } catch (e) { try { console.warn('App Check could not start:', e && e.message); } catch (x) {} }
     return app;
