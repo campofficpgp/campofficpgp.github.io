@@ -16,6 +16,10 @@
    3) READ-ONLY NOTICE (optional).  window.CAMP_WRITE_ROLES = ['admin','super_admin']
       shows a banner to everybody else on that page, so they know saving is not allowed.
 
+   4) SUPER ADMIN SIGN-IN CODE.  When the Super Admin has turned the sign-in code ON and this sign-in has not yet been
+      verified, any page other than the portal sends the Super Admin to the portal, which shows the code screen.
+      (The Firestore rules are the real lock; this only avoids a page full of "permission denied".)
+
    No page logic is replaced: the guard only watches the existing Firebase session.
    ========================================================================== */
 (function () {
@@ -30,6 +34,7 @@
   var KEY_ACTIVITY = 'campLastActivity';
   var KEY_IDLE_OUT = 'campIdleLogout';
   var PORTAL_URL = '/camp-office-suite/';
+  var FN_STATUS = 'https://us-central1-camp-office-project.cloudfunctions.net/campOtpStatus';
 
   var auth = null, db = null, user = null;
   var memLast = Date.now(), lastSaved = 0;
@@ -186,6 +191,26 @@
     }).catch(function () { block('error'); });
   }
 
+  /* ------------------------------------------------- Super Admin sign-in code */
+  function onPortalPage() {
+    var p = location.pathname;
+    return p === PORTAL_URL || p === PORTAL_URL + 'index.html' || p === '/' || p === '/index.html';
+  }
+  function checkOtp(u) {
+    if (onPortalPage()) { return; }
+    u.getIdTokenResult().then(function (res) {
+      var key = u.uid + ':' + (res.claims && res.claims.auth_time);
+      try { if (sessionStorage.getItem('campOtpOk') === key) { return; } } catch (e) {}
+      return fetch(FN_STATUS, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + res.token }, body: '{}' })
+        .then(function (r) { return r.json().then(function (j) { return { s: r.status, j: j || {} }; }); })
+        .then(function (r) {
+          if (r.s !== 200) { return; }                       /* server unreachable / not deployed yet: leave the page alone */
+          if (r.j.required && !r.j.verified) { location.href = PORTAL_URL; return; }
+          if (!r.j.isSuper || r.j.verified) { try { sessionStorage.setItem('campOtpOk', key); } catch (e) {} }
+        });
+    }).catch(function () { /* ignore: never block a page because this extra check could not run */ });
+  }
+
   /* ------------------------------------------------------------------ wire */
   function bind() {
     addStyle();
@@ -204,7 +229,7 @@
         if (ls && Date.now() - ls < 2 * 60 * 1000) { touch(true); }
       } catch (e) {}
       tick();                                       /* a stale restored session is signed out at once */
-      if (auth.currentUser) { checkApproved(user); }
+      if (auth.currentUser) { checkApproved(user); checkOtp(user); }
     });
     if (timer) { clearInterval(timer); }
     timer = setInterval(tick, TICK_MS);
