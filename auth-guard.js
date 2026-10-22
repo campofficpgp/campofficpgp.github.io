@@ -23,6 +23,12 @@
       verified, any page other than the portal sends the Super Admin to the portal, which shows the code screen.
       (The Firestore rules are the real lock; this only avoids a page full of "permission denied".)
 
+   5) MAINTENANCE SWITCH.  The Super Admin can close the portal (maintenance.html).  The document appConfig/maintenance
+      { closed, message, reopenAtMs } is watched live; while it says closed (and the reopen time, if any, has not come)
+      every signed-in user except the Super Admin gets a full-screen "portal closed" notice with the message and the
+      reopening time.  Nothing is signed out and no data is touched; the Super Admin keeps working normally.
+      This is a SCREEN lock for normal users (like the approval gate); the Firestore rules do not read this switch.
+
    No page logic is replaced: the guard only watches the existing Firebase session.
    ========================================================================== */
 (function () {
@@ -136,6 +142,7 @@
     bannerEl = null;
   }
   function tick() {
+    applyMaint();
     if (!user) { hideBanner(); return; }
     var limit = idleFor(user.uid);
     var idle = Date.now() - getLast();
@@ -150,7 +157,7 @@
   }
   function unblock() {
     if (blockEl && blockEl.parentNode) { blockEl.parentNode.removeChild(blockEl); }
-    blockEl = null; setInert(false);
+    blockEl = null; setInert(!!maintEl);
   }
   function block(kind) {
     addStyle();
@@ -232,6 +239,144 @@
     }).catch(function () { /* ignore: never block a page because this extra check could not run */ });
   }
 
+  /* ------------------------------------------------------ Maintenance switch */
+  var maintEl = null, maintBar = null, maintUid = null, maintUnsub = null, maintDoc = null, maintIsSuper = null;
+  function maintClosedNow() {
+    var d = maintDoc;
+    if (!d || d.closed !== true) { return false; }
+    var r = Number(d.reopenAtMs) || 0;
+    return !(r > 0 && Date.now() >= r);
+  }
+  function fmtKarachi(ms) {
+    try {
+      return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Karachi', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(ms)).replace(',', '');
+    } catch (e) { return new Date(ms).toString(); }
+  }
+  function mkEl(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) { e.className = cls; }
+    if (text != null) { e.textContent = text; }
+    return e;
+  }
+  function hideMaint() {
+    if (maintEl && maintEl.parentNode) { maintEl.parentNode.removeChild(maintEl); }
+    maintEl = null;
+    setInert(!!blockEl);
+  }
+  function showMaint() {
+    addStyle();
+    var d = maintDoc || {};
+    var r = Number(d.reopenAtMs) || 0;
+    var msg = typeof d.message === 'string' ? d.message.trim() : '';
+    var sig = (msg || '') + '|' + r;
+    if (maintEl && maintEl.getAttribute('data-sig') === sig) { return; }   /* already showing the same notice */
+    if (maintEl && maintEl.parentNode) { maintEl.parentNode.removeChild(maintEl); }
+    maintEl = mkEl('div', 'cg-block');
+    maintEl.setAttribute('data-sig', sig);
+    maintEl.setAttribute('role', 'alertdialog');
+    maintEl.setAttribute('aria-modal', 'true');
+    maintEl.style.zIndex = '2147483647';
+    var card = mkEl('div', 'cg-card');
+    card.appendChild(mkEl('h2', null, 'پورٹل عارضی طور پر بند ہے / The portal is temporarily closed'));
+    var ur = mkEl('div', 'cg-ur', msg || 'پورٹل اس وقت بند ہے۔ براہ کرم بعد میں دوبارہ کوشش کریں۔');
+    card.appendChild(ur);
+    if (!msg) { card.appendChild(mkEl('div', 'cg-en', 'The portal is closed at the moment. Please try again later.')); }
+    var when = mkEl('div', 'cg-ur');
+    when.style.marginTop = '8px';
+    if (r > 0) {
+      when.appendChild(document.createTextNode('کھلنے کا وقت / Reopens at: '));
+      when.appendChild(mkEl('span', 'cg-time', fmtKarachi(r)));
+    } else {
+      when.appendChild(document.createTextNode('کھلنے کا وقت ابھی طے نہیں / Reopening time not announced yet'));
+    }
+    card.appendChild(when);
+    var row = mkEl('div', 'cg-row');
+    var again = mkEl('button', 'cg-btn', 'دوبارہ دیکھیں / Check again');
+    again.type = 'button';
+    again.addEventListener('click', function () { try { location.reload(); } catch (e) {} });
+    var out = mkEl('button', 'cg-btn cg-alt', 'لاگ آؤٹ / Sign out');
+    out.type = 'button';
+    out.addEventListener('click', function () { if (auth) { auth.signOut().then(function () { location.href = PORTAL_URL; }); } });
+    row.appendChild(again); row.appendChild(out);
+    card.appendChild(row);
+    maintEl.appendChild(card);
+    document.documentElement.appendChild(maintEl);   /* outside <body>, so making <body> inert does not disable it */
+    setInert(true);
+    try { again.focus(); } catch (e) {}
+  }
+  /* Super Admin: a thin red strip while the portal is closed, so it is never forgotten */
+  function superStrip(on) {
+    if (!on) {
+      if (maintBar && maintBar.parentNode) { maintBar.parentNode.removeChild(maintBar); }
+      maintBar = null; return;
+    }
+    if (maintBar) { return; }
+    addStyle();
+    maintBar = mkEl('a', 'cg-ro');
+    maintBar.href = PORTAL_URL + 'maintenance.html';
+    maintBar.style.cssText = 'top:auto;bottom:0;background:#b3261e;color:#fff;border-bottom:0;border-top:2px solid #7d1a15;text-decoration:none;display:block;font-weight:700;padding:5px 10px;font-size:12.5px;line-height:1.5';
+    maintBar.textContent = '🔒 پورٹل دوسروں کے لیے بند ہے — منظم کریں / Closed for everyone else — manage';
+    document.body.appendChild(maintBar);
+  }
+  function applyMaint() {
+    if (!user || maintIsSuper === null) { hideMaint(); superStrip(false); return; }
+    var closed = maintClosedNow();
+    if (maintIsSuper) { hideMaint(); superStrip(closed); return; }
+    superStrip(false);
+    if (closed) { showMaint(); } else { hideMaint(); }
+  }
+  /* is this signed-in user the Super Admin?  profile first; the sign-in-code endpoint as a fallback */
+  function findSuper(u) {
+    function viaServer() {
+      return u.getIdToken().then(function (tok) {
+        return fetch(FN_STATUS, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, body: '{}' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (j) { return !!(j && j.isSuper); });
+      }).catch(function () { return false; });
+    }
+    if (!db) { return Promise.resolve(false); }
+    return db.collection('users').doc(u.uid).get().then(function (snap) {
+      var x = snap.exists ? snap.data() : null;
+      return !!x && x.roleV2 === 'super_admin';
+    }).catch(function () { return viaServer(); });
+  }
+  function addMaintLink() {
+    /* Super Admin only: a "Maintenance" entry in the sidebar footer of every portal page that has one */
+    if (!maintIsSuper) { return; }
+    var foot = document.querySelector('.sidebar-foot');
+    if (!foot || foot.querySelector('[data-cg-maint]')) { return; }
+    var a = document.createElement('a');
+    a.href = PORTAL_URL + 'maintenance.html';
+    a.setAttribute('data-cg-maint', '1');
+    var ico = mkEl('span', 'ico', '🔒');
+    var lab = mkEl('span', 'label', 'Maintenance');
+    a.appendChild(ico); a.appendChild(lab);
+    foot.insertBefore(a, foot.firstChild);
+  }
+  function stopMaint() {
+    if (maintUnsub) { try { maintUnsub(); } catch (e) {} }
+    maintUnsub = null; maintUid = null; maintDoc = null; maintIsSuper = null;
+    hideMaint(); superStrip(false);
+  }
+  function startMaint(u) {
+    if (!db || !u || maintUid === u.uid) { return; }
+    stopMaint();
+    maintUid = u.uid;
+    var myUid = u.uid;
+    findSuper(u).then(function (isSup) {
+      if (maintUid !== myUid) { return; }
+      maintIsSuper = !!isSup;
+      if (isSup) { markSuper(myUid); addMaintLink(); setTimeout(addMaintLink, 1500); }
+      applyMaint();
+    });
+    try {
+      maintUnsub = db.collection('appConfig').doc('maintenance').onSnapshot(function (snap) {
+        maintDoc = snap.exists ? (snap.data() || null) : null;
+        applyMaint();
+      }, function () { /* cannot read the switch: leave the page alone (never lock people out by mistake) */ });
+    } catch (e) { /* ignore */ }
+  }
+
   /* ------------------------------------------------------------------ wire */
   function bind() {
     addStyle();
@@ -244,7 +389,7 @@
     if (!getLast()) { touch(true); }               /* first ever run: start the clock, do not sign anybody out */
     auth.onAuthStateChanged(function (u) {
       user = u || null;
-      if (!user) { hideBanner(); unblock(); return; }
+      if (!user) { hideBanner(); unblock(); stopMaint(); return; }
       var ls = 0;
       try { ls = user.metadata && user.metadata.lastSignInTime ? Date.parse(user.metadata.lastSignInTime) : 0; } catch (e) {}
       var now = Date.now(), seen = firstAuthSeen;
@@ -258,7 +403,7 @@
         if (tooOld || staleIdle) { signOutIdle(); return; }
       }
       tick();                                       /* a stale restored session is signed out at once */
-      if (auth.currentUser) { checkApproved(user); checkOtp(user); }
+      if (auth.currentUser) { checkApproved(user); checkOtp(user); startMaint(user); }
     });
     if (timer) { clearInterval(timer); }
     timer = setInterval(tick, TICK_MS);
@@ -280,6 +425,7 @@
     signOut: signOutIdle,
     markSuper: markSuper,
     unmarkSuper: unmarkSuper,
+    maintenanceClosed: function () { return maintClosedNow(); },
     lastIdleLogout: function () {
       try { return parseInt(localStorage.getItem(KEY_IDLE_OUT), 10) || 0; } catch (e) { return 0; }
     },
