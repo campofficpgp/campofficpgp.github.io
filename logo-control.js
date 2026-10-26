@@ -60,6 +60,17 @@
     document.head.appendChild(s);
   }
 
+  /* browser-tab icon: the Punjab emblem is swapped for a plain "CO" icon while the Punjab logo is switched off */
+  var NEUTRAL_ICON = 'data:image/png;base64,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';
+  function syncFavicon() {
+    var show = eff().govt, list = document.querySelectorAll('link[rel~="icon"],link[rel="apple-touch-icon"],link[rel="shortcut icon"]');
+    Array.prototype.forEach.call(list, function (l) {
+      if (l.getAttribute('data-camp-orig') === null) l.setAttribute('data-camp-orig', l.getAttribute('href') || '');
+      var want = show ? l.getAttribute('data-camp-orig') : NEUTRAL_ICON;
+      if (l.getAttribute('href') !== want) l.setAttribute('href', want);
+    });
+  }
+
   function applyClasses() {
     var e = eff(), h = document.documentElement;
     h.classList.toggle('camp-nologo-govt', !e.govt);
@@ -67,6 +78,7 @@
     h.classList.toggle('camp-scr-nologo-govt', !e.govt);   /* on-screen logos follow the switches exactly like the printouts */
     h.classList.toggle('camp-scr-nologo-pros', !e.pros);
     syncPros();
+    syncFavicon();
     paint();
   }
 
