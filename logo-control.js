@@ -26,6 +26,12 @@
     });
     return o;
   }
+  /* the value a person explicitly chose for a logo (personal choice wins over the shared one); undefined = never chosen */
+  function chosen(k) {
+    var v;
+    [shared, local].forEach(function (s) { if (s && typeof s[k] === 'boolean') v = s[k]; });
+    return v;
+  }
   local = readLocal();
 
   var PROS_SRC = 'logo-public-prosecution.png';
@@ -42,6 +48,8 @@
       '@media print{html.camp-nologo-govt img[src*="logo-punjab-govt"],html.camp-nologo-pros img[src*="logo-public-prosecution"]{display:none!important}' +
       'html.camp-nologo-govt [data-camp-logo="govt"],html.camp-nologo-pros [data-camp-logo="pros"]{display:none!important}' +
       '#campLogosChip,#campLogosPanel{display:none!important}}' +
+      /* on-screen logos (top bar, side menu, sign-in seal) hide too once a person has actually chosen to hide them (class set only for an explicit choice) */
+      'html.camp-scr-nologo-govt img[src*="logo-punjab-govt"]:not(.camp-pros-print),html.camp-scr-nologo-pros img[src*="logo-public-prosecution"]:not(.camp-pros-print){display:none!important}' +
       /* on-screen copies that exist only to preview a printout (pay slip etc.) follow the switch too */
       'html.camp-nologo-govt [data-camp-logo="govt"],html.camp-nologo-pros [data-camp-logo="pros"]{display:none!important}' +
       'img.camp-pros-print{height:56px;width:auto;margin-left:auto;flex:none;display:block}' +
@@ -76,6 +84,8 @@
     var e = eff(), h = document.documentElement;
     h.classList.toggle('camp-nologo-govt', !e.govt);
     h.classList.toggle('camp-nologo-pros', !e.pros);
+    h.classList.toggle('camp-scr-nologo-govt', chosen('govt') === false);
+    h.classList.toggle('camp-scr-nologo-pros', chosen('pros') === false);
     syncPros();
     paint();
   }
