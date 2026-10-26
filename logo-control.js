@@ -30,7 +30,10 @@
 
   var PROS_SRC = 'logo-public-prosecution.png';
   /* where each print "letterhead" lives on the pages (the Prosecution logo is added at the right end when switched on) */
-  var MASTHEADS = ['.pb-print-masthead', '.print-masthead', '.ps-top', '.lk-letterhead', '.letterhead', '.rs-masthead', '.masthead'];
+  /* [selector, mode]  append = add at the end;  row = stacked logo row (Punjab logo left, Prosecution logo right);
+     lhrow = Case Notice letterhead row (logo, heading, then Prosecution logo in place of the empty spacer) */
+  var MASTHEADS = [['.pb-print-masthead', 'append'], ['.print-masthead', 'append'], ['.ps-top', 'append'],
+                   ['.print-sheet .p-logo', 'row'], ['.roster-sheet .p-logo', 'row'], ['.notice-sheet .lh-row', 'lhrow'], ['#printArea .pa-lh', 'append'], ['.print-sheet .p-lh-sp', 'append']];
 
   function css() {
     var s = document.createElement('style');
@@ -41,12 +44,18 @@
       '#campLogosChip,#campLogosPanel{display:none!important}}' +
       /* on-screen copies that exist only to preview a printout (pay slip etc.) follow the switch too */
       'html.camp-nologo-govt [data-camp-logo="govt"],html.camp-nologo-pros [data-camp-logo="pros"]{display:none!important}' +
-      'img.camp-pros-print{height:56px;width:auto;margin-left:auto;flex:none;display:none}' +
-      '@media print{img.camp-pros-print{display:block}}' +
+      'img.camp-pros-print{height:56px;width:auto;margin-left:auto;flex:none;display:block}' +
+      '.p-logo.camp-prow{display:flex!important;align-items:center;justify-content:space-between;width:auto!important;max-width:none!important;flex:none}' +
+      '.p-logo.camp-prow>img:not(.camp-pros-print){margin:0!important}' +
+      '.p-logo.camp-prow>img.camp-pros-print{height:52px;margin:0 0 0 auto!important}' +
+      '.p-lh-sp>img.camp-pros-print{height:52px;width:auto;margin:0 0 0 auto;display:block}' +
+      '#printArea .pa-lh>img.camp-pros-print{position:absolute;right:0;top:0;height:42px;margin:0}' +
+      '.lh-row.camp-lhpros::after{display:none!important}.lh-row.camp-lhpros>img.camp-pros-print{flex:0 0 76px;height:60px;width:auto;max-width:76px;object-fit:contain;margin:0}' +
       '.ps-top img.camp-pros-print{display:block;position:absolute;right:0;top:0;height:60px;margin:0}.payslip-paper.rtl .ps-top img.camp-pros-print{right:auto;left:0}' +
       '#campLogosChip{position:fixed;left:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:2147483000;font:600 12px/1 system-ui,sans-serif;' +
       'background:#153A5B;color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:8px 12px;cursor:pointer;opacity:.82;box-shadow:0 2px 8px rgba(0,0,0,.3)}' +
       '#campLogosChip:hover,#campLogosChip:focus{opacity:1}' +
+      '@media (min-width:900px){#campLogosChip,#campLogosPanel{left:268px!important}}' +   /* stay clear of the sidebar */
       '#campLogosPanel{position:fixed;left:10px;bottom:calc(52px + env(safe-area-inset-bottom,0px));z-index:2147483001;width:min(380px,calc(100vw - 20px));background:#fff;color:#1b2430;' +
       'border:1px solid #b8860b;border-radius:12px;padding:12px 14px;box-shadow:0 8px 28px rgba(0,0,0,.35);font:13px/1.45 system-ui,"Noto Nastaliq Urdu",sans-serif;display:none}' +
       '#campLogosPanel.open{display:block}' +
@@ -74,17 +83,23 @@
   /* add / remove the Prosecution logo at the right end of every print letterhead */
   function syncPros() {
     var on = eff().pros;
-    MASTHEADS.forEach(function (sel) {
+    MASTHEADS.forEach(function (spec) {
+      var sel = spec[0], mode = spec[1];
       var list = []; try { list = document.querySelectorAll(sel); } catch (e) {}
       Array.prototype.forEach.call(list, function (m) {
         if (m.closest && m.closest('#campLogosPanel')) return;
+        if (mode === 'row' && m.parentNode && m.parentNode.matches && m.parentNode.matches('.p-lh,.lh-row')) return;   /* letterhead rows that have their own right-hand spot */
         var has = m.querySelector(':scope > img.camp-pros-print');
         if (on && !has) {
           var i = document.createElement('img'); i.className = 'camp-pros-print'; i.setAttribute('data-camp-logo', 'pros');
           i.alt = 'Public Prosecution Punjab'; i.src = PROS_SRC;
           i.onerror = function () { i.src = '/camp-office-suite/' + PROS_SRC; i.onerror = null; };
           m.appendChild(i);
-        } else if (!on && has) { has.parentNode.removeChild(has); }
+          if (mode === 'row') m.classList.add('camp-prow'); else if (mode === 'lhrow') m.classList.add('camp-lhpros');
+        } else if (!on && has) {
+          has.parentNode.removeChild(has);
+          m.classList.remove('camp-prow'); m.classList.remove('camp-lhpros');
+        }
       });
     });
   }
@@ -95,7 +110,7 @@
   function T(en, ur) { var u = /^ur/i.test(document.documentElement.lang || '') || document.documentElement.dir === 'rtl'; return u ? ur : en; }
   function build() {
     if (document.getElementById('campLogosChip')) return;
-    chip = document.createElement('button'); chip.id = 'campLogosChip'; chip.type = 'button';
+    chip = document.createElement('button'); chip.id = 'campLogosChip'; chip.type = 'button'; chip.style.display = 'none';   /* shown only after sign-in */
     chip.setAttribute('aria-label', 'Print logos'); chip.title = 'Print logos / پرنٹ لوگو';
     chip.textContent = 'Logos / لوگو';
     panel = document.createElement('div'); panel.id = 'campLogosPanel'; panel.setAttribute('role', 'dialog');
@@ -143,7 +158,8 @@
       var db = fs();
       if (!db || !firebase.auth) { if (++tries < 60) setTimeout(wait, 500); return; }
       firebase.auth().onAuthStateChanged(function (u) {
-        if (!u) return;
+        if (!u) { if (chip) chip.style.display = 'none'; return; }
+        if (chip) chip.style.display = '';
         db.collection('siteContent').doc('printLogos').onSnapshot(function (s) {
           shared = s.exists ? s.data() : null; applyClasses(); notify();
         }, function () {});
@@ -160,6 +176,20 @@
     onChange: function (f) { if (typeof f === 'function') subs.push(f); },
     refresh: syncPros,
     /* give every page a one-line way to ask for the logo file: returns bytes or null if the logo is switched off */
+    /* {bytes, w, h} of the logo (PNG), or null when it is switched off / cannot be loaded */
+    info: function (k) {
+      var key = (k === 'pros' || k === 'prosecution') ? 'pros' : 'govt';
+      if (!this.show(key)) return Promise.resolve(null);
+      var file = key === 'pros' ? 'logo-public-prosecution.png' : 'logo-punjab-govt.png';
+      function grab(u) { return fetch(u).then(function (r) { return r.ok ? r.arrayBuffer() : null; }).catch(function () { return null; }); }
+      return grab(file).then(function (b) { return b || grab('/camp-office-suite/' + file); }).then(function (b) {
+        if (!b) return null;
+        var u = new Uint8Array(b);
+        if (u.length < 24 || u[1] !== 80 || u[2] !== 78 || u[3] !== 71) return null;
+        var dv = new DataView(u.buffer, u.byteOffset, u.byteLength), w = dv.getUint32(16), h = dv.getUint32(20);
+        return (w && h) ? { bytes: u, w: w, h: h } : null;
+      });
+    },
     bytes: function (k, src) {
       if (!this.show(k)) return Promise.resolve(null);
       return fetch(src || (k === 'pros' ? PROS_SRC : 'logo-punjab-govt.png')).then(function (r) { return r.ok ? r.arrayBuffer() : null; })
