@@ -10,23 +10,19 @@
   if (window.CampLogos) return;
   var KEY = 'campLogosLocal';
   var DEFAULT = { govt: true, pros: false };
-  var shared = null, local = null, adminOk = false, subs = [];
+  var shared = null, superOk = false, draft = null, subs = [];
 
-  function readLocal() {
-    try { var v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v && typeof v === 'object') return v; } catch (e) {}
-    return null;
-  }
-  function writeLocal(v) { try { if (v) localStorage.setItem(KEY, JSON.stringify(v)); else localStorage.removeItem(KEY); } catch (e) {} }
+  /* Only the saved (shared) choice counts: nobody can change the logos on their own screen.
+     The switches live on the Super Admin's Maintenance page. */
+  try { localStorage.removeItem('campLogosLocal'); } catch (e) {}
   function eff() {
     var o = { govt: DEFAULT.govt, pros: DEFAULT.pros };
-    [shared, local].forEach(function (s) {
-      if (!s) return;
-      if (typeof s.govt === 'boolean') o.govt = s.govt;
-      if (typeof s.pros === 'boolean') o.pros = s.pros;
-    });
+    if (shared) {
+      if (typeof shared.govt === 'boolean') o.govt = shared.govt;
+      if (typeof shared.pros === 'boolean') o.pros = shared.pros;
+    }
     return o;
   }
-  local = readLocal();
 
   var PROS_SRC = 'logo-public-prosecution.png';
   /* where each print "letterhead" lives on the pages (the Prosecution logo is added at the right end when switched on) */
@@ -41,7 +37,7 @@
     s.textContent =
       '@media print{html.camp-nologo-govt img[src*="logo-punjab-govt"],html.camp-nologo-pros img[src*="logo-public-prosecution"]{display:none!important}' +
       'html.camp-nologo-govt [data-camp-logo="govt"],html.camp-nologo-pros [data-camp-logo="pros"]{display:none!important}' +
-      '#campLogosChip,#campLogosPanel{display:none!important}}' +
+      '#campLogosMount{display:none!important}}' +
       /* on-screen logos (top bar, side menu, sign-in seal) follow the switches too */
       'html.camp-scr-nologo-govt img[src*="logo-punjab-govt"]:not(.camp-pros-print),html.camp-scr-nologo-pros img[src*="logo-public-prosecution"]:not(.camp-pros-print){display:none!important}' +
       /* on-screen copies that exist only to preview a printout (pay slip etc.) follow the switch too */
@@ -54,23 +50,13 @@
       '#printArea .pa-lh>img.camp-pros-print{position:absolute;right:0;top:0;height:42px;margin:0}' +
       '.lh-row.camp-lhpros::after{display:none!important}.lh-row.camp-lhpros>img.camp-pros-print{flex:0 0 76px;height:60px;width:auto;max-width:76px;object-fit:contain;margin:0}' +
       '.ps-top img.camp-pros-print{display:block;position:absolute;right:0;top:0;height:60px;margin:0}.payslip-paper.rtl .ps-top img.camp-pros-print{right:auto;left:0}' +
-      '#campLogosChip{position:fixed;left:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:2147483000;font:600 12px/1 system-ui,sans-serif;' +
-      'background:#153A5B;color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:8px 12px;cursor:pointer;opacity:.82;box-shadow:0 2px 8px rgba(0,0,0,.3)}' +
-      '#campLogosChip:hover,#campLogosChip:focus{opacity:1}' +
-      '@media (min-width:900px){#campLogosChip,#campLogosPanel{left:268px!important}}' +   /* stay clear of the sidebar */
-      '#campLogosPanel{position:fixed;left:10px;bottom:calc(52px + env(safe-area-inset-bottom,0px));z-index:2147483001;width:min(380px,calc(100vw - 20px));background:#fff;color:#1b2430;' +
-      'border:1px solid #b8860b;border-radius:12px;padding:12px 14px;box-shadow:0 8px 28px rgba(0,0,0,.35);font:13px/1.45 system-ui,"Noto Nastaliq Urdu",sans-serif;display:none}' +
-      '#campLogosPanel.open{display:block}' +
-      '#campLogosPanel h4{margin:0 0 8px;font-size:14px;color:#153A5B}' +
-      '#campLogosPanel .cl-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid #e3e7ec}' +
-      '#campLogosPanel .cl-name b{display:block;font-size:13px}#campLogosPanel .cl-name span{font-size:12px;color:#555}' +
-      '#campLogosPanel button.cl-sw{min-width:112px;white-space:nowrap;border:1px solid #153A5B;border-radius:8px;padding:7px 10px;font:600 12px system-ui,sans-serif;cursor:pointer;background:#153A5B;color:#fff}' +
-      '#campLogosPanel button.cl-sw.off{background:#fff;color:#153A5B}' +
-      '#campLogosPanel .cl-foot{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}' +
-      '#campLogosPanel .cl-foot button{flex:1;min-width:120px;border:1px solid #b8860b;background:#fff8e1;color:#5c4400;border-radius:8px;padding:7px 8px;font:600 12px system-ui,sans-serif;cursor:pointer}' +
-      '#campLogosPanel .cl-msg{margin-top:6px;font-size:12px;color:#2a6a2a;min-height:16px}' +
-      '@media (prefers-color-scheme:dark){#campLogosPanel{background:#16222e;color:#e8eef5;border-color:#c9a227}#campLogosPanel h4{color:#9cc4ec}#campLogosPanel .cl-name span{color:#b6c3d1}#campLogosPanel .cl-row{border-color:#2d3d4d}' +
-      '#campLogosPanel button.cl-sw.off{background:#16222e;color:#9cc4ec;border-color:#9cc4ec}#campLogosPanel .cl-foot button{background:#2b2410;color:#f0d98a}}';
+      '#campLogosMount .cl-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid rgba(128,128,128,.3)}' +
+      '#campLogosMount .cl-name b{display:block;font-size:14px}#campLogosMount .cl-name span{font-size:12px;opacity:.75}' +
+      '#campLogosMount button.cl-sw{min-width:120px;white-space:nowrap;border:1px solid #153A5B;border-radius:8px;padding:8px 12px;font:600 13px system-ui,sans-serif;cursor:pointer;background:#153A5B;color:#fff}' +
+      '#campLogosMount button.cl-sw.off{background:transparent;color:inherit;border-color:currentColor}' +
+      '#campLogosMount .cl-foot{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}' +
+      '#campLogosMount .cl-foot button{border:1px solid #b8860b;background:#fff8e1;color:#5c4400;border-radius:8px;padding:9px 14px;font:600 13px system-ui,sans-serif;cursor:pointer}' +
+      '#campLogosMount .cl-msg{margin-top:8px;font-size:13px;min-height:18px;color:#2a7a2a}';
     document.head.appendChild(s);
   }
 
@@ -91,7 +77,7 @@
       var sel = spec[0], mode = spec[1];
       var list = []; try { list = document.querySelectorAll(sel); } catch (e) {}
       Array.prototype.forEach.call(list, function (m) {
-        if (m.closest && m.closest('#campLogosPanel')) return;
+        if (m.closest && m.closest('#campLogosMount')) return;
         if (mode === 'row' && m.parentNode && m.parentNode.matches && m.parentNode.matches('.p-lh,.lh-row')) return;   /* letterhead rows that have their own right-hand spot */
         var has = m.querySelector(':scope > img.camp-pros-print');
         if (on && !has) {
@@ -110,50 +96,40 @@
 
   function notify() { var e = eff(); subs.forEach(function (f) { try { f(e); } catch (x) {} }); }
 
-  var chip, panel;
   function T(en, ur) { var u = /^ur/i.test(document.documentElement.lang || '') || document.documentElement.dir === 'rtl'; return u ? ur : en; }
-  function build() {
-    if (document.getElementById('campLogosChip')) return;
-    chip = document.createElement('button'); chip.id = 'campLogosChip'; chip.type = 'button'; chip.style.display = 'none';   /* shown only after sign-in */
-    chip.setAttribute('aria-label', 'Print logos'); chip.title = 'Print logos / پرنٹ لوگو';
-    chip.textContent = 'Logos / لوگو';
-    panel = document.createElement('div'); panel.id = 'campLogosPanel'; panel.setAttribute('role', 'dialog');
-    document.body.appendChild(panel); document.body.appendChild(chip);
-    chip.addEventListener('click', function () { panel.classList.toggle('open'); paint(); });
-    document.addEventListener('click', function (ev) { if (panel.classList.contains('open') && !panel.contains(ev.target) && ev.target !== chip) panel.classList.remove('open'); });
-  }
   var msg = '';
+  /* the switches appear only inside <div id="campLogosMount"> (Maintenance page) and only for a Super Admin */
   function paint() {
-    if (!panel) return;
-    var e = eff();
+    var host = document.getElementById('campLogosMount');
+    if (!host) return;
+    if (!superOk) { host.innerHTML = ''; return; }
+    var cur = eff(), d = draft || { govt: cur.govt, pros: cur.pros };
     function row(k, en, ur, sub) {
       return '<div class="cl-row"><div class="cl-name"><b>' + en + ' &nbsp;|&nbsp; ' + ur + '</b><span>' + sub + '</span></div>' +
-        '<button type="button" class="cl-sw ' + (e[k] ? '' : 'off') + '" data-k="' + k + '">' + (e[k] ? 'Shown / دکھایا' : 'Hidden / چھپایا') + '</button></div>';
+        '<button type="button" class="cl-sw ' + (d[k] ? '' : 'off') + '" data-k="' + k + '">' + (d[k] ? 'Shown / دکھایا' : 'Hidden / چھپایا') + '</button></div>';
     }
-    panel.innerHTML = '<h4>Print logos &nbsp;|&nbsp; پرنٹ میں لوگو</h4>' +
-      row('govt', 'Punjab Govt logo', 'پنجاب حکومت کا لوگو', 'Print, PDF, Word, Excel, pay slip / پرنٹ، پی ڈی ایف، ورڈ، ایکسل') +
-      row('pros', 'Prosecution logo', 'پراسیکیوشن کا لوگو', 'Placed at the right of the heading / ہیڈنگ کے دائیں طرف') +
-      '<div class="cl-foot">' + (adminOk ? '<button type="button" data-a="save">Save for everyone<br>سب کے لیے محفوظ کریں</button>' : '') +
-      (local ? '<button type="button" data-a="reset">Use the saved choice<br>محفوظ شدہ ترتیب استعمال کریں</button>' : '') + '</div>' +
-      '<div class="cl-msg" role="status">' + msg + '</div>';
-    Array.prototype.forEach.call(panel.querySelectorAll('button.cl-sw'), function (b) {
+    var changed = d.govt !== cur.govt || d.pros !== cur.pros;
+    host.innerHTML = row('govt', 'Punjab Govt logo', 'پنجاب حکومت کا لوگو', 'Whole portal: screen, print, PDF, Word, Excel, pay slip / پورا پورٹل: اسکرین، پرنٹ، پی ڈی ایف، ورڈ، ایکسل') +
+      row('pros', 'Prosecution logo', 'پراسیکیوشن کا لوگو', 'Whole portal; in prints it sits at the right of the heading / پورا پورٹل؛ پرنٹ میں ہیڈنگ کے دائیں طرف') +
+      '<div class="cl-foot"><button type="button" data-a="save"' + (changed ? '' : ' style="opacity:.55"') + '>Save for everyone<br>سب کے لیے محفوظ کریں</button></div>' +
+      '<div class="cl-msg" role="status">' + (changed ? 'Not saved yet / ابھی محفوظ نہیں ہوا' : msg) + '</div>';
+    Array.prototype.forEach.call(host.querySelectorAll('button.cl-sw'), function (b) {
       b.addEventListener('click', function () {
-        var k = b.getAttribute('data-k'), cur = eff();
-        local = local || { govt: cur.govt, pros: cur.pros };
-        local[k] = !cur[k]; writeLocal(local); msg = ''; applyClasses(); notify();
+        var k = b.getAttribute('data-k'), c2 = eff();
+        draft = draft || { govt: c2.govt, pros: c2.pros };
+        draft[k] = !draft[k]; msg = ''; paint();
       });
     });
-    var sv = panel.querySelector('[data-a="save"]'), rs = panel.querySelector('[data-a="reset"]');
+    var sv = host.querySelector('[data-a="save"]');
     if (sv) sv.addEventListener('click', saveShared);
-    if (rs) rs.addEventListener('click', function () { local = null; writeLocal(null); msg = ''; applyClasses(); notify(); });
   }
 
   function fs() { try { return window.firebase && firebase.apps && firebase.apps.length && firebase.firestore ? firebase.firestore() : null; } catch (e) { return null; } }
   function saveShared() {
     var db = fs(); if (!db) { msg = 'No connection / رابطہ نہیں'; paint(); return; }
-    var e = eff();
+    var cur = eff(), e = draft || cur;
     db.collection('siteContent').doc('printLogos').set({ govt: e.govt, pros: e.pros, updatedAt: Date.now() }, { merge: true })
-      .then(function () { shared = { govt: e.govt, pros: e.pros }; local = null; writeLocal(null); msg = 'Saved for everyone / سب کے لیے محفوظ ہو گیا'; applyClasses(); notify(); })
+      .then(function () { shared = { govt: e.govt, pros: e.pros }; draft = null; msg = 'Saved for everyone / سب کے لیے محفوظ ہو گیا'; applyClasses(); notify(); })
       .catch(function () { msg = 'Not allowed / اجازت نہیں'; paint(); });
   }
   function connect() {
@@ -162,13 +138,12 @@
       var db = fs();
       if (!db || !firebase.auth) { if (++tries < 60) setTimeout(wait, 500); return; }
       firebase.auth().onAuthStateChanged(function (u) {
-        if (!u) { if (chip) chip.style.display = 'none'; return; }
-        if (chip) chip.style.display = '';
+        if (!u) { superOk = false; paint(); return; }
         db.collection('siteContent').doc('printLogos').onSnapshot(function (s) {
           shared = s.exists ? s.data() : null; applyClasses(); notify();
         }, function () {});
         db.collection('users').doc(u.uid).get().then(function (s) {
-          var d = s.exists ? s.data() : {}; adminOk = ['admin', 'super_admin'].indexOf(d.roleV2) !== -1; paint();
+          var d = s.exists ? s.data() : {}; superOk = d.roleV2 === 'super_admin'; paint();
         }).catch(function () {});
       });
     })();
@@ -201,7 +176,7 @@
     }
   };
 
-  function start() { css(); applyClasses(); build(); paint(); connect();
+  function start() { css(); applyClasses(); paint(); connect();
     window.addEventListener('beforeprint', syncPros);
     try { var tm = 0; new MutationObserver(function () { if (!eff().pros && !document.querySelector('img.camp-pros-print')) return; clearTimeout(tm); tm = setTimeout(syncPros, 150); }).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
   }
