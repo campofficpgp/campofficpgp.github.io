@@ -239,6 +239,31 @@
     }).catch(function () { /* ignore: never block a page because this extra check could not run */ });
   }
 
+  /* ------------------------------------------------ one sign-in page for everything
+     Nobody signs in on a system's own page any more: if no one is signed in, the page goes to the portal's
+     sign-in page (the only place for sign-in, forgot-password and account requests). After signing in the portal
+     brings the person back to the page he came from (remembered for one hour in this tab only). */
+  var JUMPED = false;
+  function sendToPortalSignIn() {
+    if (JUMPED || onPortalPage() || window.CAMP_NO_SIGNIN_REDIRECT) { return; }
+    JUMPED = true;
+    try {
+      var p = location.pathname + location.search + location.hash;
+      if (p.charAt(0) === '/' && p.charAt(1) !== '/' && p.charAt(1) !== '\\') {
+        sessionStorage.setItem('campReturnTo', JSON.stringify({ p: p, t: Date.now() }));
+      }
+    } catch (e) {}
+    try {
+      addStyle();
+      var c = document.createElement('div');
+      c.className = 'cg-block'; c.style.zIndex = '2147483647'; c.style.background = '#0f192d';
+      c.setAttribute('role', 'status');
+      c.innerHTML = '<div class="cg-card"><div class="cg-ur">سائن اِن صفحے پر لے جایا جا رہا ہے…</div><div class="cg-en">Taking you to the sign-in page…</div></div>';
+      document.documentElement.appendChild(c);
+    } catch (e) {}
+    location.replace(PORTAL_URL);
+  }
+
   /* ------------------------------------------------------ Maintenance switch */
   var maintEl = null, maintBar = null, maintUid = null, maintUnsub = null, maintDoc = null, maintIsSuper = null;
   function maintClosedNow() {
@@ -389,7 +414,7 @@
     if (!getLast()) { touch(true); }               /* first ever run: start the clock, do not sign anybody out */
     auth.onAuthStateChanged(function (u) {
       user = u || null;
-      if (!user) { hideBanner(); unblock(); stopMaint(); return; }
+      if (!user) { hideBanner(); unblock(); stopMaint(); sendToPortalSignIn(); return; }
       var ls = 0;
       try { ls = user.metadata && user.metadata.lastSignInTime ? Date.parse(user.metadata.lastSignInTime) : 0; } catch (e) {}
       var now = Date.now(), seen = firstAuthSeen;
