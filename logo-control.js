@@ -5,11 +5,12 @@
    - Admin / Super Admin can press "Save for everyone" (stored in Firestore: siteContent/printLogos,
      an existing collection, so no change in security rules is needed).
    Pages use:  CampLogos.show('govt')  /  CampLogos.show('pros')  (true = print it).
-   Safe by design: if this file is missing, pages fall back to "Punjab logo on, Prosecution logo off". */
+   Safe by design: if this file is missing, pages fall back to "both logos hidden". */
 (function () {
   if (window.CampLogos) return;
   var KEY = 'campLogosLocal';
-  var DEFAULT = { govt: true, pros: false };
+  /* Hidden until the saved choice is read: a signed-out screen (sign-in page) or a slow connection must never show a logo the office has switched off. */
+  var DEFAULT = { govt: false, pros: false };
   var shared = null, superOk = false, draft = null, subs = [];
 
   /* Only the saved (shared) choice counts: nobody can change the logos on their own screen.
