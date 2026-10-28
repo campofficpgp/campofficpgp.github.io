@@ -402,6 +402,50 @@
     } catch (e) { /* ignore */ }
   }
 
+  /* ------------------------------------------------------------------ Logout button on every page
+     One shared "Logout / لاگ آؤٹ" item at the bottom of the side menu of every page that loads this guard (all systems and all
+     portal pages), so a user can sign out from wherever he is. A page with no side menu (the Shared Dropdown Lists page) gets a
+     small button in the top corner instead. Set window.CAMP_NO_LOGOUT_LINK = true on a page to switch it off. */
+  function doLogout(e) {
+    if (e) { e.preventDefault(); }
+    try {
+      if (window.CampActivity && CampActivity.logoutThenSignOut && db && auth && auth.currentUser) {
+        CampActivity.logoutThenSignOut(db, auth, auth.currentUser, null);
+        return;
+      }
+    } catch (err) { /* fall through to a plain sign-out */ }
+    if (auth) { auth.signOut(); }
+  }
+  function addLogoutLink() {
+    try {
+      if (window.CAMP_NO_LOGOUT_LINK || window.self !== window.top) { return; }
+      var foots = document.querySelectorAll('.sidebar-foot');
+      if (foots.length) {
+        Array.prototype.forEach.call(foots, function (f) {
+          if (f.querySelector('[data-cg-logout]')) { return; }
+          var a = document.createElement('a');
+          a.href = '#logout'; a.setAttribute('data-cg-logout', '1');
+          a.title = 'Logout / لاگ آؤٹ';
+          var ico = document.createElement('span'); ico.className = 'ico'; ico.textContent = '\uD83D\uDEAA';
+          var lb = document.createElement('span'); lb.className = 'label';
+          lb.setAttribute('data-en', 'Logout'); lb.setAttribute('data-ur', 'لاگ آؤٹ');
+          lb.textContent = 'Logout / لاگ آؤٹ';
+          a.appendChild(ico); a.appendChild(lb);
+          a.addEventListener('click', doLogout);
+          f.appendChild(a);
+        });
+        return;
+      }
+      if (document.querySelector('[data-cg-logout]') || document.getElementById('logoutBtn')) { return; }
+      var b = document.createElement('button');
+      b.type = 'button'; b.setAttribute('data-cg-logout', '1');
+      b.textContent = '\uD83D\uDEAA Logout / لاگ آؤٹ';
+      b.style.cssText = 'position:fixed;top:10px;inset-inline-end:12px;z-index:2147483000;background:#17294a;color:#fff;border:1px solid #d4a13d;border-radius:18px;padding:6px 14px;font:600 12px system-ui,sans-serif;cursor:pointer;';
+      b.addEventListener('click', doLogout);
+      (document.body || document.documentElement).appendChild(b);
+    } catch (e) { /* never break the page for a button */ }
+  }
+
   /* ------------------------------------------------------------------ wire */
   function bind() {
     addStyle();
@@ -429,6 +473,7 @@
       }
       tick();                                       /* a stale restored session is signed out at once */
       if (auth.currentUser) { checkApproved(user); checkOtp(user); startMaint(user); }
+      if (auth.currentUser) { addLogoutLink(); }
     });
     if (timer) { clearInterval(timer); }
     timer = setInterval(tick, TICK_MS);
