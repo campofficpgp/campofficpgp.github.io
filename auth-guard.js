@@ -446,6 +446,68 @@
     } catch (e) { /* never break the page for a button */ }
   }
 
+  /* ------------------------------------------------------------------ One theme choice for every page
+     The portal pages remember the colour theme under "cmpTheme", the five separate systems under "campOfficeTheme" (and in
+     users/{uid}.theme). That made a choice made in one place invisible in the other. From here on the two are kept equal:
+       - when this page loads, the two local values are made the same (the cloud-backed "campOfficeTheme" wins if they differ);
+       - whenever a page saves its theme, the other key gets the same value and the user's profile (users/{uid}.theme) is updated;
+       - after sign-in, the profile value is applied if it differs from what this browser has.
+     Only these two keys are touched; no data is changed. A page that does not know a theme name simply shows its default colours. */
+  var THEME_KEYS = ['cmpTheme', 'campOfficeTheme'];
+  var rawSet = null, rawGet = null;
+  function themeOk(v) { return typeof v === 'string' && /^[a-z0-9]{1,20}$/.test(v); }
+  function themeApply(id) {
+    try {
+      if (!themeOk(id)) { return; }
+      document.documentElement.setAttribute('data-theme', id);
+      if (document.body) { document.body.setAttribute('data-theme', id); }
+    } catch (e) { /* ignore */ }
+  }
+  function themeSaveCloud(id) {
+    try {
+      var u = auth && auth.currentUser;
+      if (!u || !db || !themeOk(id)) { return; }
+      db.collection('users').doc(u.uid).set({ theme: id }, { merge: true }).catch(function () { /* the page's own save shows its message */ });
+    } catch (e) { /* ignore */ }
+  }
+  function themeInit() {
+    try {
+      var P = Storage.prototype;
+      rawSet = P.setItem; rawGet = P.getItem;
+      var a = rawGet.call(localStorage, 'cmpTheme'), b = rawGet.call(localStorage, 'campOfficeTheme');
+      var pick = themeOk(b) ? b : (themeOk(a) ? a : null);
+      if (pick) {
+        if (a !== pick) { rawSet.call(localStorage, 'cmpTheme', pick); }
+        if (b !== pick) { rawSet.call(localStorage, 'campOfficeTheme', pick); }
+      }
+      P.setItem = function (k, v) {
+        rawSet.apply(this, arguments);
+        try {
+          if (this === localStorage && (k === 'cmpTheme' || k === 'campOfficeTheme') && themeOk(String(v))) {
+            var other = (k === 'cmpTheme') ? 'campOfficeTheme' : 'cmpTheme';
+            if (rawGet.call(localStorage, other) !== String(v)) { rawSet.call(localStorage, other, String(v)); }
+            themeSaveCloud(String(v));
+          }
+        } catch (e) { /* never break a page's own save */ }
+      };
+    } catch (e) { /* storage blocked: nothing to do */ }
+  }
+  function themeFromCloud(u) {
+    try {
+      if (!db || !u || !rawGet) { return; }
+      db.collection('users').doc(u.uid).get().then(function (snap) {
+        var t = snap && snap.exists ? snap.data().theme : null;
+        if (!themeOk(t)) { return; }
+        var cur = rawGet.call(localStorage, 'campOfficeTheme');
+        if (cur === t) { return; }
+        rawSet.call(localStorage, 'campOfficeTheme', t);
+        rawSet.call(localStorage, 'cmpTheme', t);
+        themeApply(t);
+      }).catch(function () { /* ignore */ });
+    } catch (e) { /* ignore */ }
+  }
+  themeInit();
+
   /* ------------------------------------------------------------------ wire */
   function bind() {
     addStyle();
@@ -474,6 +536,7 @@
       tick();                                       /* a stale restored session is signed out at once */
       if (auth.currentUser) { checkApproved(user); checkOtp(user); startMaint(user); }
       if (auth.currentUser) { addLogoutLink(); }
+      if (auth.currentUser) { themeFromCloud(user); }
     });
     if (timer) { clearInterval(timer); }
     timer = setInterval(tick, TICK_MS);
