@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Digital Portal",
-  "short_name": "Portal",
+  "name": "Digital Office Desk",
+  "short_name": "Office Desk",
   "description": "Daily cases, notices, inspection, scanning and registers in one app.",
   "lang": "en",
   "start_url": "/camp-office-suite/?source=pwa",
