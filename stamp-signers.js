@@ -3,7 +3,7 @@
    Firestore lookupLists/stampSignatories ({items:[{name,designation,address}]}) and replaces the built-in one on every page.
    Nothing here is required: every stamp can still be typed by hand. */
 (function(){
-  var ADDR = 'Camp Office Prosecutor General Punjab\nSupreme Court Of Pakistan\nIslamabad';
+  var ADDR = '';
   var DEFAULTS = [
     {name:'Iftikhar Ahmed', designation:'Junior Clerk', address:ADDR},
     {name:'Tariq Siddique', designation:'APG', address:ADDR},

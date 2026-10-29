@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Camp Office Portal — Prosecutor General Punjab",
-  "short_name": "Camp Office",
-  "description": "Camp Office, Prosecutor General Punjab — daily cases, notices, inspection, scanning and registers in one app.",
+  "name": "Digital Portal",
+  "short_name": "Portal",
+  "description": "Daily cases, notices, inspection, scanning and registers in one app.",
   "lang": "en",
   "start_url": "/camp-office-suite/?source=pwa",
   "scope": "/",
