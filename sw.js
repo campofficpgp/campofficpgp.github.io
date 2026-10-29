@@ -2,7 +2,7 @@
    Deliberately tiny: it does NOT cache pages, scripts or data, so every upload to GitHub shows up
    immediately and nobody is ever stuck on an old version. It only keeps one small "no connection"
    page so the installed app shows a friendly message instead of the browser's dinosaur when offline. */
-var CACHE = 'camp-office-pwa-v1';
+var CACHE = 'camp-office-pwa-v2';
 var OFFLINE_URL = '/offline.html';
 
 self.addEventListener('install', function(event){
