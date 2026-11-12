@@ -4,6 +4,8 @@
    Loaded by every page of the portal and by the five separate systems (they all
    live on the same origin, cmpofficepgp.org, and share one Firebase sign-in).
 
+   0) SUPER ADMIN ONLY: a small "Auto sign-out ON/OFF" button (bottom-left) switches the auto sign-out OFF for 1 h / 4 h / 1 day;
+      it switches itself back ON (never permanent). Stored in this browser only. Other users are never affected.
    1) AUTO SIGN-OUT.  After 30 minutes (Super Admin: 10 minutes) without ANY activity in ANY open tab the
       user is signed out (a 2-minute warning with a "Stay signed in" button comes
       first).  Activity is shared between tabs through localStorage, so working in
@@ -62,7 +64,21 @@
   function isSuperUid(uid) {
     try { return !!uid && localStorage.getItem(KEY_SUPER) === uid; } catch (e) { return false; }
   }
-  function idleFor(uid) { return isSuperUid(uid) ? IDLE_SUPER_MS : IDLE_MS; }
+  /* SUPER ADMIN ONLY: auto sign-out can be switched OFF for 1 h / 4 h / 1 day (never permanently); it switches itself back ON.
+     Kept in this browser only (localStorage), shared by its open tabs. Everybody else is never affected. */
+  var KEY_PAUSE = 'campIdlePauseUntil';
+  var PAUSE_HOURS = [1, 4, 24];
+  var PAUSE_BIG_MS = 48 * 60 * 60 * 1000;
+  function pauseUntil() { try { var v = parseInt(localStorage.getItem(KEY_PAUSE), 10); return isNaN(v) ? 0 : v; } catch (e) { return 0; } }
+  function pauseActive(uid) { return isSuperUid(uid) && pauseUntil() > Date.now(); }
+  function idleFor(uid) { return pauseActive(uid) ? PAUSE_BIG_MS : (isSuperUid(uid) ? IDLE_SUPER_MS : IDLE_MS); }
+  function setPause(hours) {
+    if (!user || !isSuperUid(user.uid)) { return false; }
+    if (!hours) { try { localStorage.removeItem(KEY_PAUSE); } catch (e) {} touch(true); return true; }
+    if (PAUSE_HOURS.indexOf(hours) < 0) { return false; }
+    try { localStorage.setItem(KEY_PAUSE, String(Date.now() + hours * 3600 * 1000)); } catch (e) { return false; }
+    touch(true); return true;
+  }
   function markSuper(uid) { try { if (uid) { localStorage.setItem(KEY_SUPER, uid); } } catch (e) {} }
   function unmarkSuper(uid) { try { if (localStorage.getItem(KEY_SUPER) === uid) { localStorage.removeItem(KEY_SUPER); } } catch (e) {} }
 
@@ -143,12 +159,57 @@
   }
   function tick() {
     applyMaint();
-    if (!user) { hideBanner(); return; }
+    if (!user) { hideBanner(); pauseUiHide(); return; }
+    var pu = pauseUntil();
+    if (pu && pu <= Date.now()) { try { localStorage.removeItem(KEY_PAUSE); } catch (e) {} touch(true); }   /* the OFF time is over: ON again, fresh clock */
+    pauseUiRefresh();
     var limit = idleFor(user.uid);
     var idle = Date.now() - getLast();
     if (idle >= limit) { signOutIdle(); return; }
     if (idle >= limit - WARN_MS) { showBanner(Math.max(0, Math.ceil((limit - idle) / 1000))); }
     else { hideBanner(); }
+  }
+
+  /* ------------------------------------- Super Admin: auto sign-out ON / OFF */
+  var pauseEl = null, pauseOpen = false;
+  function pauseUiHide() { if (pauseEl && pauseEl.parentNode) { pauseEl.parentNode.removeChild(pauseEl); } pauseEl = null; pauseOpen = false; }
+  function fmtLeft(ms) { var m = Math.max(0, Math.ceil(ms / 60000)); return m >= 60 ? Math.floor(m / 60) + 'h ' + pad2(m % 60) + 'm' : m + ' min'; }
+  function pauseUiRefresh() {
+    if (!user || !isSuperUid(user.uid) || bannerEl) { if (!user || !isSuperUid(user.uid)) { pauseUiHide(); } return; }
+    if (!document.body) { return; }
+    if (!pauseEl) {
+      pauseEl = document.createElement('div');
+      pauseEl.setAttribute('data-cg-pause', '');
+      pauseEl.className = 'no-print';
+      pauseEl.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:2147483000;font:12px/1.4 system-ui,Segoe UI,Arial,sans-serif;direction:ltr';
+      document.body.appendChild(pauseEl);
+      pauseEl.addEventListener('click', function (e) {
+        var t = e.target.closest('[data-cg-act]'); if (!t) { return; }
+        var a = t.getAttribute('data-cg-act');
+        if (a === 'toggle') { pauseOpen = !pauseOpen; }
+        else if (a === 'on') { setPause(0); pauseOpen = false; }
+        else { setPause(parseInt(a, 10)); pauseOpen = false; }
+        pauseUiRender();
+      });
+    }
+    pauseUiRender();
+  }
+  function pauseUiRender() {
+    if (!pauseEl) { return; }
+    var pu = pauseUntil(), off = pu > Date.now();
+    var btn = 'border:1px solid #1f4e79;background:#fff;color:#1f4e79;border-radius:14px;padding:4px 10px;cursor:pointer;font:inherit;margin:2px';
+    var h = '<button type="button" data-cg-act="toggle" style="' + btn + (off ? ';background:#fff4d6;border-color:#b7791f;color:#7a4b00' : '') + '">' +
+      (off ? '⏱ Auto sign-out OFF · ' + fmtLeft(pu - Date.now()) + ' left / آٹو لاگ آؤٹ بند' : '⏱ Auto sign-out ON · 10 min / آٹو لاگ آؤٹ چالو') + '</button>';
+    if (pauseOpen) {
+      h += '<div style="margin-top:4px;background:#fff;border:1px solid #cbd5e0;border-radius:10px;padding:6px;box-shadow:0 4px 14px rgba(0,0,0,.2)">' +
+        '<div style="margin:0 4px 4px;color:#555">Switch OFF for / بند رکھیں:</div>' +
+        '<button type="button" data-cg-act="1" style="' + btn + '">1 hour / ایک گھنٹہ</button>' +
+        '<button type="button" data-cg-act="4" style="' + btn + '">4 hours / چار گھنٹے</button>' +
+        '<button type="button" data-cg-act="24" style="' + btn + '">1 day / ایک دن</button>' +
+        (off ? '<div><button type="button" data-cg-act="on" style="' + btn + ';background:#e6f4ea;border-color:#2e7d32;color:#1b4d20">Turn ON now / ابھی چالو کریں</button></div>' : '') +
+        '<div style="margin:4px;color:#777;max-width:230px">It switches itself back ON. Close the browser tab when you leave the desk. / وقت ختم ہوتے ہی خود چالو ہو جائے گا۔</div></div>';
+    }
+    if (pauseEl.__h !== h) { pauseEl.__h = h; pauseEl.innerHTML = h; }   /* only when changed, so a click is never lost */
   }
 
   /* ------------------------------------------------------- approval gate */
@@ -557,6 +618,8 @@
     touch: function () { touch(true); },
     signOut: signOutIdle,
     markSuper: markSuper,
+    pauseIdle: setPause,
+    pauseUntil: pauseUntil,
     unmarkSuper: unmarkSuper,
     maintenanceClosed: function () { return maintClosedNow(); },
     lastIdleLogout: function () {
@@ -568,3 +631,4 @@
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', function () { init(0); }); }
   else { init(0); }
 })();
+
