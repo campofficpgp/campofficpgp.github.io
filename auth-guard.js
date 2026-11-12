@@ -181,7 +181,7 @@
       pauseEl = document.createElement('div');
       pauseEl.setAttribute('data-cg-pause', '');
       pauseEl.className = 'no-print';
-      pauseEl.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:2147483000;font:12px/1.4 system-ui,Segoe UI,Arial,sans-serif;direction:ltr';
+      pauseEl.style.cssText = 'position:fixed;left:12px;bottom:46px;z-index:2147483000;font:12px/1.4 system-ui,Segoe UI,Arial,sans-serif;direction:ltr';
       document.body.appendChild(pauseEl);
       pauseEl.addEventListener('click', function (e) {
         var t = e.target.closest('[data-cg-act]'); if (!t) { return; }
