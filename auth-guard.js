@@ -119,7 +119,9 @@
       '.cg-block .cg-row{justify-content:center}' +
       '.cg-ro{position:fixed;top:0;left:0;right:0;z-index:2147483000;background:#fbebd0;color:#5a4309;border-bottom:2px solid #b8860b;padding:8px 14px;text-align:center;' +
       'font-family:"Segoe UI",Tahoma,Arial,sans-serif;font-size:13.5px;line-height:1.7}' +
-      '.cg-ro .cg-ur{direction:rtl;font-family:"Noto Nastaliq Urdu","Noto Naskh Arabic",Tahoma,Arial,sans-serif}';
+      '.cg-ro .cg-ur{direction:rtl;font-family:"Noto Nastaliq Urdu","Noto Naskh Arabic",Tahoma,Arial,sans-serif}' +
+      /* nothing from the portal's own notice bars, idle-sign-out banner, closed-portal strip or the auto sign-out ON/OFF pill is ever printed */
+      '@media print{.cg-ro,.cg-banner,.cg-block,[data-cg-pause],a[href$="maintenance.html"]{display:none !important;visibility:hidden !important}}';
     document.head.appendChild(st);
   }
 
@@ -178,6 +180,7 @@
     if (!user || !isSuperUid(user.uid) || bannerEl) { if (!user || !isSuperUid(user.uid)) { pauseUiHide(); } return; }
     if (!document.body) { return; }
     if (!pauseEl) {
+      addStyle();
       pauseEl = document.createElement('div');
       pauseEl.setAttribute('data-cg-pause', '');
       pauseEl.className = 'no-print';
