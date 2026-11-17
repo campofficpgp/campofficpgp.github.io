@@ -173,6 +173,16 @@
   }
 
   /* ------------------------------------- Super Admin: auto sign-out ON / OFF */
+  /* The sign-out button and the red maintenance bar no longer float over the page: they sit in a strip at the very top of
+     the page, in the normal flow, so they can never cover a card, a table row or a form at the bottom. */
+  function cgDock() {
+    var d = document.getElementById('cg-dock');
+    if (!d) {
+      d = document.createElement('div'); d.id = 'cg-dock'; d.className = 'no-print';
+      document.body.insertBefore(d, document.body.firstChild);
+    }
+    return d;
+  }
   var pauseEl = null, pauseOpen = false;
   function pauseUiHide() { if (pauseEl && pauseEl.parentNode) { pauseEl.parentNode.removeChild(pauseEl); } pauseEl = null; pauseOpen = false; }
   function fmtLeft(ms) { var m = Math.max(0, Math.ceil(ms / 60000)); return m >= 60 ? Math.floor(m / 60) + 'h ' + pad2(m % 60) + 'm' : m + ' min'; }
@@ -185,7 +195,7 @@
       pauseEl.setAttribute('data-cg-pause', '');
       pauseEl.className = 'no-print';
       pauseEl.style.cssText = 'position:fixed;left:12px;bottom:46px;z-index:2147483000;font:12px/1.4 system-ui,Segoe UI,Arial,sans-serif;direction:ltr';
-      document.body.appendChild(pauseEl);
+      cgDock().appendChild(pauseEl);
       pauseEl.addEventListener('click', function (e) {
         var t = e.target.closest('[data-cg-act]'); if (!t) { return; }
         var a = t.getAttribute('data-cg-act');
@@ -405,7 +415,7 @@
     maintBar.href = PORTAL_URL + 'maintenance.html';
     maintBar.style.cssText = 'top:auto;bottom:0;background:#b3261e;color:#fff;border-bottom:0;border-top:2px solid #7d1a15;text-decoration:none;display:block;font-weight:700;padding:5px 10px;font-size:12.5px;line-height:1.5';
     maintBar.textContent = '🔒 پورٹل دوسروں کے لیے بند ہے — منظم کریں / Closed for everyone else — manage';
-    document.body.appendChild(maintBar);
+    cgDock().appendChild(maintBar);
   }
   function applyMaint() {
     if (!user || maintIsSuper === null) { hideMaint(); superStrip(false); return; }
@@ -623,6 +633,14 @@
   (function () {
     var css = '@media screen{' +
       'html body{padding-bottom:140px !important;box-sizing:border-box}' +
+      '#cg-dock{display:flex;flex-wrap:wrap;align-items:stretch;position:relative;z-index:80}' +
+      '#cg-dock:empty{display:none}' +
+      '#cg-dock [data-cg-pause]{position:relative !important;left:auto !important;bottom:auto !important;top:auto !important;padding:2px 8px;background:#fff7e6;flex:0 0 auto}' +
+      '#cg-dock .cg-ro{position:static !important;flex:1 1 260px;border-top:0 !important;border-bottom:2px solid #7d1a15 !important}' +
+      '#cg-dock [data-cg-pause] > div{position:absolute;left:8px;top:100%;z-index:2147483000}' +
+      '#a11y-fab .t{display:none !important}' +
+      '#a11y-fab{padding:0 !important;width:42px;min-height:42px !important;justify-content:center;opacity:.85}' +
+      '#a11y-fab:hover,#a11y-fab:focus-visible{opacity:1}' +
       'aside.sidebar,#sidebar,nav.sidebar{padding-bottom:110px !important}' +
       '.cg-pad-scroll{padding-bottom:110px !important}' +
       '#chatPanel .chat-input-bar{margin-bottom:120px !important}' +
@@ -639,7 +657,6 @@
     try {
       if (!document.body) { return; }
       var barH = (maintBar && maintBar.parentNode) ? maintBar.getBoundingClientRect().height : 0;
-      if (pauseEl && pauseEl.parentNode) { pauseEl.style.bottom = (barH ? Math.ceil(barH) + 12 : 16) + 'px'; }
       var list = document.querySelectorAll('div,main,section,article,form');
       for (var i = 0; i < list.length; i++) {
         var el = list[i];
