@@ -625,6 +625,7 @@
       'html body{padding-bottom:140px !important;box-sizing:border-box}' +
       'aside.sidebar,#sidebar,nav.sidebar{padding-bottom:110px !important}' +
       '.cg-pad-scroll{padding-bottom:110px !important}' +
+      '#chatPanel .chat-input-bar{margin-bottom:84px !important}' +
       '}';
     function put() {
       if (document.getElementById('cg-bottom-space')) { return; }
