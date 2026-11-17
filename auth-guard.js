@@ -616,33 +616,43 @@
     setTimeout(function () { init(tries + 1); }, 250);
   }
 
-  /* Floating bars at the bottom (maintenance bar, auto sign-out button, accessibility button) must never hide page content:
-     measure them and leave that much empty space at the end of the page and of the side menu. The sign-out button also sits
-     just above the maintenance bar, even when the bar wraps onto two lines on a phone. */
-  var reserveEl = null, reserveLast = -1;
+  /* Floating bars at the bottom (maintenance bar, auto sign-out button, accessibility button) must never hide page content.
+     1) A fixed empty space of 140px at the end of every page, and 110px at the end of the side menu (screen only, not print).
+     2) Inner scrolling boxes (a table that scrolls inside its own frame, e.g. Lookup) get the same space at their end.
+     3) The sign-out button always sits just above the maintenance bar, even when the bar wraps onto two lines on a phone. */
+  (function () {
+    var css = '@media screen{' +
+      'html body{padding-bottom:140px !important;box-sizing:border-box}' +
+      'aside.sidebar,#sidebar,nav.sidebar{padding-bottom:110px !important}' +
+      '.cg-pad-scroll{padding-bottom:110px !important}' +
+      '}';
+    function put() {
+      if (document.getElementById('cg-bottom-space')) { return; }
+      var st = document.createElement('style'); st.id = 'cg-bottom-space'; st.textContent = css;
+      (document.head || document.documentElement).appendChild(st);
+    }
+    put();
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', put); }
+  })();
   function reserveBottom() {
     try {
       if (!document.body) { return; }
-      var vh = window.innerHeight || document.documentElement.clientHeight, h = 0;
       var barH = (maintBar && maintBar.parentNode) ? maintBar.getBoundingClientRect().height : 0;
       if (pauseEl && pauseEl.parentNode) { pauseEl.style.bottom = (barH ? Math.ceil(barH) + 12 : 16) + 'px'; }
-      var kids = document.body.children;
-      for (var i = 0; i < kids.length; i++) {
-        var el = kids[i], cs = window.getComputedStyle(el);
-        if (cs.position !== 'fixed' || cs.display === 'none' || cs.visibility === 'hidden') { continue; }
-        var r = el.getBoundingClientRect();
-        if (!r.height || r.height > vh * 0.4 || r.bottom < vh - 80 || r.top < vh * 0.5) { continue; }
-        h = Math.max(h, vh - r.top);
+      var list = document.querySelectorAll('div,main,section,article,form');
+      for (var i = 0; i < list.length; i++) {
+        var el = list[i];
+        if (el.classList.contains('cg-pad-scroll') || el.clientHeight < 150) { continue; }
+        var cs = window.getComputedStyle(el);
+        if (!/auto|scroll/.test(cs.overflowY) || el.scrollHeight <= el.clientHeight + 4) { continue; }
+        if (cs.position === 'fixed' || el.closest('[role="dialog"],dialog,.modal,.hist-back,[aria-modal="true"]')) { continue; }
+        el.classList.add('cg-pad-scroll');
       }
-      h = h ? Math.ceil(h) + 12 : 0;
-      if (h === reserveLast) { return; }
-      reserveLast = h;
-      if (!reserveEl) { reserveEl = document.createElement('style'); reserveEl.id = 'cg-bottom-space'; document.head.appendChild(reserveEl); }
-      reserveEl.textContent = h ? '@media screen{body::after,aside.sidebar::after{content:"";display:block;height:' + h + 'px;flex:none}}' : '';
     } catch (e) {}
   }
-  setInterval(reserveBottom, 1500);
+  setInterval(reserveBottom, 2500);
   window.addEventListener('resize', reserveBottom);
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', reserveBottom); } else { setTimeout(reserveBottom, 300); }
 
   window.CampGuard = {
     idleMs: IDLE_MS,
