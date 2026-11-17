@@ -632,7 +632,7 @@
      3) The sign-out button always sits just above the maintenance bar, even when the bar wraps onto two lines on a phone. */
   (function () {
     var css = '@media screen{' +
-      'html body{padding-bottom:140px !important;box-sizing:border-box}' +
+      'html body{padding-bottom:160px !important;box-sizing:border-box}' +
       '#cg-dock{display:flex;flex-wrap:wrap;align-items:stretch;position:relative;z-index:80}' +
       '#cg-dock:empty{display:none}' +
       '#cg-dock [data-cg-pause]{position:relative !important;left:auto !important;bottom:auto !important;top:auto !important;padding:2px 8px;background:#fff7e6;flex:0 0 auto}' +
@@ -642,9 +642,12 @@
       '#a11y-fab{padding:0 !important;width:42px;min-height:42px !important;justify-content:center;opacity:.85}' +
       '#a11y-fab:hover,#a11y-fab:focus-visible{opacity:1}' +
       'aside.sidebar,#sidebar,nav.sidebar{padding-bottom:110px !important}' +
-      '.cg-pad-scroll{padding-bottom:110px !important}' +
+      '.cg-pad-scroll{padding-bottom:160px !important}' +
       '#chatPanel .chat-input-bar{margin-bottom:120px !important}' +
-      '}';
+      '}' +
+      /* Clean print on every page: menus, top bars, tabs, page numbers, buttons and floating bars never print; only the data does.
+         Buttons inside table cells (e.g. Lookup case numbers) still print. Inner scrolling tables print in full. */
+      '@media print{#cg-dock,#a11y-root,#a11y-skip,.cg-ro,.cg-banner,.cg-block,[data-cg-pause],a[href$=\"maintenance.html\"],aside.sidebar,#sidebar,nav.sidebar,.sidebar-backdrop,.topbar,.topbar2,nav,[role=\"tablist\"],[role=\"navigation\"],.toast,#toast,.br-snack,#chatToggleBtn,#chatPanel,.chat-fab,[class*=\"pager\"],[class*=\"pagination\"],.no-print,body button:not(td *):not(th *):not(.print-keep):not(.print-keep *){display:none !important}html body{padding-bottom:0 !important}.cg-pad-scroll{padding-bottom:0 !important;max-height:none !important;overflow:visible !important}}';
     function put() {
       if (document.getElementById('cg-bottom-space')) { return; }
       var st = document.createElement('style'); st.id = 'cg-bottom-space'; st.textContent = css;
