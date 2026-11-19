@@ -212,7 +212,7 @@
     var pu = pauseUntil(), off = pu > Date.now();
     var btn = 'border:1px solid #1f4e79;background:#fff;color:#1f4e79;border-radius:14px;padding:4px 10px;cursor:pointer;font:inherit;margin:2px';
     var h = '<button type="button" data-cg-act="toggle" style="' + btn + (off ? ';background:#fff4d6;border-color:#b7791f;color:#7a4b00' : '') + '">' +
-      (off ? '⏱ Auto sign-out OFF · ' + fmtLeft(pu - Date.now()) + ' left / آٹو لاگ آؤٹ بند' : '⏱ Auto sign-out ON · 10 min / آٹو لاگ آؤٹ چالو') + '</button>';
+      (off ? '⏱ Auto sign-out paused · turns ON again in ' + fmtLeft(pu - Date.now()) + ' / آٹو لاگ آؤٹ وقتی طور پر بند' : '⏱ Auto sign-out ON · 10 min / آٹو لاگ آؤٹ چالو') + '</button>';
     if (pauseOpen) {
       h += '<div style="margin-top:4px;background:#fff;border:1px solid #cbd5e0;border-radius:10px;padding:6px;box-shadow:0 4px 14px rgba(0,0,0,.2)">' +
         '<div style="margin:0 4px 4px;color:#555">Switch OFF for / بند رکھیں:</div>' +
