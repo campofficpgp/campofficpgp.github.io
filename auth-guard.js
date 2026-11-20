@@ -414,7 +414,7 @@
     maintBar = mkEl('a', 'cg-ro');
     maintBar.href = PORTAL_URL + 'maintenance.html';
     maintBar.style.cssText = 'top:auto;bottom:0;background:#b3261e;color:#fff;border-bottom:0;border-top:2px solid #7d1a15;text-decoration:none;display:block;font-weight:700;padding:5px 10px;font-size:12.5px;line-height:1.5';
-    maintBar.textContent = '🔒 پورٹل دوسروں کے لیے بند ہے — منظم کریں / Closed for everyone else — manage';
+    maintBar.textContent = '🔒 Maintenance ON — portal closed for everyone else · Manage / مینٹیننس آن — پورٹل دوسروں کے لیے بند · منظم کریں';
     cgDock().appendChild(maintBar);
   }
   function applyMaint() {
@@ -499,11 +499,11 @@
           if (f.querySelector('[data-cg-logout]')) { return; }
           var a = document.createElement('a');
           a.href = '#logout'; a.setAttribute('data-cg-logout', '1');
-          a.title = 'Logout / لاگ آؤٹ';
+          a.title = 'Sign out / لاگ آؤٹ';
           var ico = document.createElement('span'); ico.className = 'ico'; ico.textContent = '\uD83D\uDEAA';
           var lb = document.createElement('span'); lb.className = 'label';
-          lb.setAttribute('data-en', 'Logout'); lb.setAttribute('data-ur', 'لاگ آؤٹ');
-          lb.textContent = 'Logout / لاگ آؤٹ';
+          lb.setAttribute('data-en', 'Sign out'); lb.setAttribute('data-ur', 'لاگ آؤٹ');
+          lb.textContent = 'Sign out / لاگ آؤٹ';
           a.appendChild(ico); a.appendChild(lb);
           a.addEventListener('click', doLogout);
           f.appendChild(a);
@@ -513,7 +513,7 @@
       if (document.querySelector('[data-cg-logout]') || document.getElementById('logoutBtn')) { return; }
       var b = document.createElement('button');
       b.type = 'button'; b.setAttribute('data-cg-logout', '1');
-      b.textContent = '\uD83D\uDEAA Logout / لاگ آؤٹ';
+      b.textContent = '\uD83D\uDEAA Sign out / لاگ آؤٹ';
       b.style.cssText = 'position:fixed;top:10px;inset-inline-end:12px;z-index:2147483000;background:#17294a;color:#fff;border:1px solid #d4a13d;border-radius:18px;padding:6px 14px;font:600 12px system-ui,sans-serif;cursor:pointer;';
       b.addEventListener('click', doLogout);
       (document.body || document.documentElement).appendChild(b);
