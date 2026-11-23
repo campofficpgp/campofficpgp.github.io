@@ -648,7 +648,10 @@
       '}' +
       /* Clean print on every page: menus, top bars, tabs, page numbers, buttons and floating bars never print; only the data does.
          Buttons inside table cells (e.g. Lookup case numbers) still print. Inner scrolling tables print in full. */
-      '@media print{#cg-dock,#a11y-root,#a11y-skip,.cg-ro,.cg-banner,.cg-block,[data-cg-pause],a[href$=\"maintenance.html\"],aside.sidebar,#sidebar,nav.sidebar,.sidebar-backdrop,.topbar,.topbar2,nav,[role=\"tablist\"],[role=\"navigation\"],.toast,#toast,.br-snack,#chatToggleBtn,#chatPanel,.chat-fab,[class*=\"pager\"],[class*=\"pagination\"],.no-print,body button:not(td *):not(th *):not(.print-keep):not(.print-keep *){display:none !important}html body{padding-bottom:0 !important}.cg-pad-scroll{padding-bottom:0 !important;max-height:none !important;overflow:visible !important}}';
+      '@media print{#cg-dock,#a11y-root,#a11y-skip,.cg-ro,.cg-banner,.cg-block,[data-cg-pause],a[href$=\"maintenance.html\"],aside.sidebar,#sidebar,nav.sidebar,.sidebar-backdrop,.topbar,.topbar2,nav,[role=\"tablist\"],[role=\"navigation\"],.toast,#toast,.br-snack,#chatToggleBtn,#chatPanel,.chat-fab,[class*=\"pager\"],[class*=\"pagination\"],.no-print,body button:not(td *):not(th *):not(.print-keep):not(.print-keep *){display:none !important}html body{padding-bottom:0 !important}.cg-pad-scroll{padding-bottom:0 !important;max-height:none !important;overflow:visible !important}' +
+      /* No web address, date, time or page title on prints: the browser only prints those in the page margin, so the margin is 0
+         and the white border (8 mm, the smallest margin any page used) is drawn by the page itself, repeated on every sheet. */
+      '@page{margin:0 !important}html body{margin:0 !important;padding:8mm !important;-webkit-box-decoration-break:clone !important;box-decoration-break:clone !important}}';
     function put() {
       if (document.getElementById('cg-bottom-space')) { return; }
       var st = document.createElement('style'); st.id = 'cg-bottom-space'; st.textContent = css;
